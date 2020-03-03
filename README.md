@@ -254,6 +254,15 @@ cmake -DBASEDIR=/home/mohit.joshi/PS280819-percona-server-8.0.16-7-linux-x86_64-
 make -j
 ```
 
+To compile pquery binary for PXC:
+
+Example:
+
+```bash
+cmake -DBASEDIR=/home/mohit.joshi/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64 -DPERCONACLUSTER=ON .
+make -j
+```
+
 ## How to start the runs?
 
 ### Pre-requisites:
@@ -328,6 +337,46 @@ Example 4 - Example of a complex run
 * `--set-variable`   - This sets the frequency of changing the server variable
                        by using the `--mso` option
 * `--undo-tbs-sql`   - This will create/drop/active/inactive undo tablespaces
+
+Example 5 - Example of a PXC run:
+
+To initiate pquery run against PXC we can use configuration file to pass the credentials and pquery options for each cluster node. 
+
+sample config file.
+```bash
+[node1.ci.percona.com]
+socket = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/node1/socket.sock
+threads = 5
+run = true
+user = root
+logdir = /tmp
+log-all-queries = Yes
+log-failed-queries = Yes
+logdir = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/log
+[node2.ci.percona.com]
+socket = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/node1/socket.sock
+threads = 5
+run = true
+user = root
+logdir = /tmp
+log-all-queries = Yes
+log-failed-queries = Yes
+logdir = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/log
+[node3.ci.percona.com]
+socket = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/node3/socket.sock
+threads = 5
+run = true
+user = root
+logdir = /tmp
+log-all-queries = Yes
+log-failed-queries = Yes
+logdir = /dev/shm/Percona-XtraDB-Cluster_8.0.16.7-27dev.4.2_debug.Linux.x86_64/log
+```
+
+Use this config file as follows:
+```bash
+./pquery2-pxc --config-file pquery.cfg  --tables 30 --records 20 --seed 200 --recreate-table=50 --optimize=10 --rename-column=100 --add-index=100 --drop-index=100 --add-column=100 --primary-key-probablity=100 --no-tbs  --no-enc -k 
+```
 
 #### How to check the Logs?
 
