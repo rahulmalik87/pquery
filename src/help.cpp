@@ -38,7 +38,6 @@ void add_server_options(std::string str) {
 
 /* process file. and push to mysqld server options */
 void add_server_options_file(std::string file_name) {
-  std::cout << "file_name " << file_name << std::endl;
   std::ifstream f1;
   f1.open(file_name);
   if (!f1)
@@ -67,33 +66,8 @@ void add_options() {
       "run pquery from generator or infine.\n If set, then query will be "
       "dynamically generated using random generator else sqls will be executed "
       "from --infine in some order based on shuffle. you can also use -k";
-  opt->setBool(false);
+  opt->setBool(true); // todo disable in release
   opt->setArgs(no_argument);
-
-  /* Load metadata */
-  opt = newOption(Option::BOOL, Option::METADATA_READ, "metadata-read");
-  opt->help = "Load table structures from a json file or created then randomly";
-  opt->setBool(false);
-  opt->setArgs(no_argument);
-
-  /* write metadata */
-  opt = newOption(Option::BOOL, Option::METADATA_WRITE, "metadata-write");
-  opt->help = "write metadata to a file. see option --metadata-write-file and "
-              "--metadata-read-file";
-  opt->setBool(true);
-
-  /* Save metadata to a file */
-  opt = newOption(Option::STRING, Option::METADATA_READ_FILE,
-                  "metadata-read-file");
-  opt->help = "read metadata from file name";
-  opt->setString("data.dll");
-
-  /* Read metadata from file */
-  opt = newOption(Option::STRING, Option::METADATA_WRITE_FILE,
-                  "metadata-write-file");
-  opt->help = "write metadata to a file, see option --metadata-read, "
-              "--metadata-write ";
-  opt->setString("new_data.dll");
 
   /* Intial Seed for test */
   opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");
@@ -124,7 +98,7 @@ void add_options() {
   opt->setArgs(no_argument);
 
   /* DDL option */
-  opt = newOption(Option::BOOL, Option::NO_DDL, "noddl");
+  opt = newOption(Option::BOOL, Option::NO_DDL, "no-ddl");
   opt->help = "do not use ddl in workload";
   opt->setBool(false);
   opt->setArgs(no_argument);
@@ -160,6 +134,13 @@ void add_options() {
   opt->help = "Disable All type of encrytion";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* todo set default to all */
+  opt = newOption(Option::STRING, Option::ENCRYPTION_TYPE, "encryption-type");
+  opt->help =
+      "all ==> keyring/Y/N \n oracle ==> Y/N \n x ==> x \n if some string "
+      "other than all/oracle is given it would use it as encryption type";
+  opt->setString("oracle");
 
   /* create,alter,drop undo tablespace */
   opt = newOption(Option::INT, Option::UNDO_SQL, "undo-tbs-sql");
@@ -268,15 +249,23 @@ void add_options() {
   opt->help = "Probability of adding primary key in a table";
   opt->setInt(50);
 
-  /*Encrypt table */
-  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
-                  "alter-table-encrypt");
-  opt->help = "Alter table set Encrytion";
+  /*Encrypt table inplace encryption */
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION_INPLACE,
+                  "alter-table-encrypt-inplace");
+  opt->help = "Alter table set Encryption inplace.\nOnly available for ps";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();
 
-  /*compress table */
+  /*Encrypt table */
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
+                  "alter-table-encrypt");
+  opt->help = "Alter table set Encryption";
+  opt->setInt(10);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* modify column */
   opt = newOption(Option::INT, Option::ALTER_COLUMN_MODIFY, "modify-column");
   opt->help = "Alter table column modify";
   opt->setInt(10);
@@ -368,7 +357,7 @@ void add_options() {
   /* SELECT */
   opt = newOption(Option::BOOL, Option::NO_SELECT, "no-select");
   opt->help = "do not execute any type select on tables";
-  opt->setBool("false");
+  opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* INSERT */
@@ -551,7 +540,7 @@ void add_options() {
   /* log all queries */
   opt = newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-all-queries");
   opt->help = "Log all queries (succeeded and failed)";
-  opt->setBool(false);
+  opt->setBool(true); // todo diable while merge
   opt->setArgs(no_argument);
 
   /* execute sql sequentially */
@@ -611,6 +600,53 @@ void add_options() {
   opt->help = "Test connection to server and exit";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* transaction probability */
+  opt = newOption(Option::INT, Option::TRANSATION_PRB_K, "trx-prb-k");
+  opt->help = "probability(out of 1000) of combining sql as single trx";
+  opt->setInt(10);
+
+  /* tranasaction size */
+  opt = newOption(Option::INT, Option::TRANSACTIONS_SIZE, "trx-size");
+  opt->help = "average size of each trx";
+  opt->setInt(100);
+
+  /* commit to rollback ratio */
+  opt = newOption(Option::INT, Option::COMMMIT_TO_ROLLBACK_RATIO,
+                  "commit-rollback-ratio");
+  opt->help = "ratio of commit to rollback. e.g.\nif 5, then 5 "
+              "transactions will be committed and 1 will be rollback.\n"
+              "if 0 then all transactions will be rollback";
+  opt->setInt(5);
+
+  /* number of savepoints in trxs */
+  opt = newOption(Option::INT, Option::SAVEPOINT_PRB_K, "savepoint-prb-k");
+  opt->help = "probability of using savepoint in a transaction.\n Also 25% "
+              "such transaction will be rollback to some savepoint";
+  opt->setInt(50);
+
+  /* steps */
+  opt = newOption(Option::INT, Option::STEP, "step");
+  opt->help = "current step in pquery script";
+  opt->setInt(1);
+
+  /* metadata file path */
+  opt = newOption(Option::STRING, Option::METADATA_PATH, "metadata-path");
+  opt->help = "path of metadata file";
+
+  /* sql format for */
+  opt = newOption(Option::INT, Option::SPECIAL_SQL, "special-sql");
+  opt->help = "special sql";
+  opt->setInt(10);
+  opt->setSQL();
+
+  /* file name of special sql */
+  opt = newOption(Option::STRING, Option::SQL_FILE, "sql-file");
+  opt->help =
+      "file to be used  for special sql\nT1_INT_1, T1_INT_2 will be replaced "
+      "with int columns of some table\n in database T1_VARCHAR_1, T1_VARCHAR_2 "
+      "will be replaced with varchar columns of some table in database";
+  opt->setString("grammer.sql");
 }
 
 Option::~Option() {}

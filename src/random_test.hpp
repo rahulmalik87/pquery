@@ -33,8 +33,9 @@
 #define opt_bool(a) options->at(Option::a)->getBool();
 #define opt_string(a) options->at(Option::a)->getString();
 
-
 int rand_int(int upper, int lower = 0);
+std::string rand_float(float upper, float lower = 0);
+std::string rand_double(double upper, double lower = 0);
 std::string rand_string(int upper, int lower = 0);
 
 struct Table;
@@ -44,19 +45,23 @@ public:
     INT,
     CHAR,
     VARCHAR,
+    FLOAT,
+    DOUBLE,
     BOOL,
     BLOB,
     GENERATED,
     COLUMN_MAX // should be last
   } type_;
-  /* used for create new table/alter table add column*/
+  /* used to create new table/alter table add column*/
   Column(std::string name, Table *table, COLUMN_TYPES type);
+
   Column(Table *table, COLUMN_TYPES type) : type_(type), table_(table){};
-  /* used for read meta data */
+
   Column(std::string name, std::string type, Table *table)
       : type_(col_type(type)), name_(name), table_(table){};
-  /* table defination */
-  std::string defination();
+
+  /* table definition */
+  std::string definition();
   /* return random value of that column */
   virtual std::string rand_value();
   /* return string to call type */
@@ -65,7 +70,7 @@ public:
   COLUMN_TYPES col_type(std::string type);
   /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
-  /* return the caluse of column */
+  /* return the clause of column */
 private:
   virtual std::string clause() {
     std::string str;
@@ -90,23 +95,30 @@ public:
 
 struct Blob_Column : public Column {
   Blob_Column(std::string name, Table *table);
-  std::string sub_type;
-  std::string clause() {
-    return sub_type;
-  };
+  Blob_Column(std::string name, Table *table, std::string sub_type_);
+  std::string sub_type; // sub_type can be tiny, medium, large blob
+  std::string clause() { return sub_type; };
   std::string rand_value() { return "\'" + rand_string(1000) + "\'"; }
+  template <typename Writer> void Serialize(Writer &writer) const;
 };
 
 struct Generated_Column : public Column {
+
+  /* constructor for new random generated column */
   Generated_Column(std::string name, Table *table);
+
+  /* constructor used to prepare metadata */
+  Generated_Column(std::string name, Table *table, std::string clause,
+                   std::string sub_type);
+
+  template <typename Writer> void Serialize(Writer &writer) const;
+
   std::string str;
   std::string clause() { return str; };
   std::string rand_value() { return "default"; };
   ~Generated_Column(){};
-  COLUMN_TYPES g_type;
-  COLUMN_TYPES generate_type() {
-    return g_type;
-  };
+  COLUMN_TYPES g_type; // sub type can be blob,int, varchar
+  COLUMN_TYPES generate_type() { return g_type; };
 };
 
 struct Ind_col {
@@ -123,7 +135,7 @@ struct Index {
   template <typename Writer> void Serialize(Writer &writer) const;
   ~Index();
 
-  std::string defination();
+  std::string definition();
 
   std::string name_;
   std::vector<Ind_col *> *columns_;
@@ -147,28 +159,22 @@ struct Thd1 {
   MYSQL *conn;
   std::atomic<unsigned long long> &performed_queries_total;
   std::atomic<unsigned long long> &failed_queries_total;
-  std::string result;        // resul of sql
-  bool ddl_query = false;    // is the query ddl
-  bool success = false;      // if the sql is successfully executed
-  bool store_result = false; // store result of executed sql
-  int max_con_fail_count = 0;        // consecutive failed queries
+  std::string result;         // resul of sql
+  bool ddl_query = false;     // is the query ddl
+  bool success = false;       // if the sql is successfully executed
+  bool store_result = false;  // store result of executed sql
+  int max_con_fail_count = 0; // consecutive failed queries
   int query_number = 0;
 };
-
 
 /* Table basic properties */
 struct Table {
 public:
-  enum TABLE_TYPES {
-    PARTITION,
-    NORMAL,
-    TEMPORARY,
-    TABLE_MAX
-  } type;
+  enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX } type;
 
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
-  std::string defination();
+  std::string definition();
   /* methods to create table of choice */
   void AddInternalColumn(Column *column) { columns_->push_back(column); }
   void AddInternalIndex(Index *index) { indexes_->push_back(index); }
@@ -181,6 +187,7 @@ public:
   void Analyze(Thd1 *thd);
   void Truncate(Thd1 *thd);
   void SetEncryption(Thd1 *thd);
+  void SetEncryptionInplace(Thd1 *thd);
   void SetTableCompression(Thd1 *thd);
   void ModifyColumn(Thd1 *thd);
   void InsertRandomRow(Thd1 *thd, bool islock);
@@ -202,7 +209,7 @@ public:
   std::string row_format;
   std::string tablespace;
   std::string compression;
-  bool encryption = false;
+  std::string encryption = "N";
   int key_block_size = 0;
   // std::string data_directory; todo add corressponding code
   std::vector<Column *> *columns_;
@@ -226,7 +233,6 @@ public:
   Temporary_table(const Temporary_table &table) : Table(table.name_){};
 };
 
-
 int set_seed(Thd1 *thd);
 int sum_of_all_options(Thd1 *thd);
 int sum_of_all_server_options();
@@ -237,8 +243,7 @@ void run_some_query(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);
-void save_objects_to_file();
-void load_objects_from_file(Thd1 *thd);
+void save_metadata_to_file();
 void clean_up_at_end();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
