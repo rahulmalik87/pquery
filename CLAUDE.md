@@ -92,10 +92,15 @@ Named `pquery3-{ps,ms,md,ws}` depending on the selected fork. Found in `src/` af
 
 ### Naming
 
-- **Classes/Structs:** PascalCase (`Column`, `Table`, `Node`, `Thd1`)
-- **Functions:** snake_case (`create_worker()`, `set_seed()`)
-- **Member variables:** snake_case with trailing underscore (`type_`, `columns_`, `name_`)
-- **Enums/Constants:** UPPER_CASE (`COLUMN_TYPES`, `TABLE_TYPES`, `MIN_SEED_SIZE`)
+Naming conventions are mixed across the codebase. When modifying existing code, match the surrounding style. When adding new code, prefer the most common pattern for each category:
+
+- **Classes/Structs:** Mostly PascalCase (`Column`, `Table`, `Node`, `Index`), with some exceptions using mixed styles (`workerParams`, `Ind_col`, `Thd1`)
+- **Member methods:** Mixed — PascalCase for Table operations (`CreateDefaultColumn`, `InsertRandomRow`, `DropCreate`, `AddInternalColumn`, `Serialize`), camelCase in Node (`workerThread`, `tryConnect`, `startWork`, `createGeneralLog`), snake_case in Thd1 (`run_some_query`, `load_metadata`)
+- **Free functions:** snake_case (`rand_int`, `set_seed`, `execute_sql`, `run_some_query`, `save_metadata_to_file`)
+- **Member variables:** Inconsistent — some have trailing underscores (`type_`, `columns_`, `name_`, `table_`), many do not (`thread_id`, `seed`, `conn`, `engine`, `encryption`, `null`, `length`, `primary_key`). Match the style of the struct you are modifying.
+- **Enum values:** UPPER_CASE (`COLUMN_TYPES`, `TABLE_TYPES`, `MIN_SEED_SIZE`, `LOG_NOTHING`)
+- **Macros/Constants:** UPPER_CASE (`INNODB_16K_PAGE_SIZE`, `MAX_SEED_SIZE`, `PQVERSION`)
+- **Typedefs:** PascalCase abbreviations (`Opx` for `std::vector<Option *>`, `Ser_Opx` for `std::vector<Server_Option *>`)
 
 ### Header Guards
 
